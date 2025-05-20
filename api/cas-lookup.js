@@ -19,7 +19,15 @@ router.get("/", async (req, res) => {
 
     const json = await response.json();
     const compound = json?.PC_Compounds?.[0];
-    const cas = compound?.props?.find(p => p.urn?.label === "CAS")?.value?.sval || "unbekannt";
+
+    const cid = compound?.id?.id?.cid;
+    const link = cid ? `https://pubchem.ncbi.nlm.nih.gov/compound/${cid}` : "";
+
+    const casMatch = (compound?.props || []).find(p =>
+      p.urn?.label === "Registry Number" && p.urn?.name === "CAS"
+    );
+    const cas = casMatch?.value?.sval || "nicht gefunden";
+
     const synonyms = (compound?.props || [])
       .filter(p => p.urn?.label === "Synonym")
       .map(p => p.value?.sval)
@@ -27,18 +35,16 @@ router.get("/", async (req, res) => {
       .slice(0, 5)
       .join(", ");
 
-    const cid = compound?.id?.id?.cid;
-
-    res.json({
+    return res.json({
       results: [
         {
           source: "PubChem",
           cas,
-          link: cid ? `https://pubchem.ncbi.nlm.nih.gov/compound/${cid}` : "",
+          link,
           synonym: query,
           synonyms,
-          match: cas !== "unbekannt" ? "exakt" : "unsicher",
-          score: cas !== "unbekannt" ? 100 : 60
+          match: cas !== "nicht gefunden" ? "exakt" : "unsicher",
+          score: cas !== "nicht gefunden" ? 100 : 60
         }
       ]
     });
