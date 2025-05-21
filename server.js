@@ -1,13 +1,15 @@
 const express = require("express");
 const cors = require("cors");
-
 const app = express();
+const port = process.env.PORT || 3001;
+
 app.use(cors());
+app.use("/api/cas-lookup", require("./api/cas-lookup"));
 
-const casLookup = require("./api/cas-lookup");
-app.use("/api/cas-lookup", casLookup);
+app.get("/", (_, res) => {
+  res.send("CAS Lookup API ist bereit.");
+});
 
-const PORT = 3001;
-app.listen(PORT, () => {
-  console.log(`Server läuft unter http://localhost:${PORT}/api/cas-lookup`);
+app.listen(port, () => {
+  console.log(`Server läuft auf Port ${port}`);
 });

@@ -1,24 +1,16 @@
-# CAS Lookup API
+# CAS Lookup Multi-Source API
 
-Einfache Node.js/Express API, um über PubChem CAS-Informationen für chemische Substanzen abzufragen.
+Dieses Projekt fragt die CAS-Daten aus mehreren Quellen ab (z. B. PubChem, Common Chemistry) und gibt strukturierte, bewertete Ergebnisse aus.
 
-## Nutzung (lokal)
+## API-Nutzung
 
 ```bash
-npm install
-node server.js
+GET /api/cas-lookup?q=aspirin
 ```
 
-API läuft dann unter: `http://localhost:3001/api/cas-lookup?q=aspirin`
+## Deployment
 
-## Deployment auf Render.com
-
-1. Repository auf GitHub pushen
-2. Auf [https://render.com](https://render.com) einloggen
-3. Neues Web Service → Verbinde dein Repository
-4. Einstellungen:
-   - Build Command: `npm install`
-   - Start Command: `node server.js`
-   - Node Version: 18+
-
-API erreichbar unter z. B. `https://cas-lookup-api.onrender.com/api/cas-lookup?q=aspirin`
+- GitHub Repository anlegen
+- Diese Dateien hochladen
+- Mit [Render.com](https://render.com/) verbinden
+- Node.js Version: 18+
