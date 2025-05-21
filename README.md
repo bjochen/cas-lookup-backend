@@ -1,16 +1,9 @@
-# CAS Lookup Multi-Source API
+# CAS Lookup Multi-Source API mit HTML-Scraping
 
-Dieses Projekt fragt die CAS-Daten aus mehreren Quellen ab (z. B. PubChem, Common Chemistry) und gibt strukturierte, bewertete Ergebnisse aus.
+Dieses Projekt verwendet PubChem als Quelle, inklusive Live-Parsing von:
+- Primary CAS
+- Related CAS
+- Deprecated CAS
 
-## API-Nutzung
-
-```bash
-GET /api/cas-lookup?q=aspirin
-```
-
-## Deployment
-
-- GitHub Repository anlegen
-- Diese Dateien hochladen
-- Mit [Render.com](https://render.com/) verbinden
-- Node.js Version: 18+
+## Beispiel
+https://cas-lookup-backend.onrender.com/api/cas-lookup?q=benzene

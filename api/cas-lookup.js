@@ -1,5 +1,6 @@
 const express = require("express");
 const fetch = require("node-fetch");
+const cheerio = require("cheerio");
 const router = express.Router();
 
 router.get("/", async (req, res) => {
@@ -9,51 +10,57 @@ router.get("/", async (req, res) => {
   const results = [];
 
   try {
-    const pubchemUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(query)}/JSON`;
-    const response = await fetch(pubchemUrl);
-    const data = await response.json();
+    const url = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(query)}/JSON`;
+    const response = await fetch(url);
+    const json = await response.json();
+    const compound = json?.PC_Compounds?.[0];
+    const cid = compound?.id?.id?.cid;
 
-    const cid = data?.PC_Compounds?.[0]?.id?.id?.cid;
-    const baseLink = cid ? `https://pubchem.ncbi.nlm.nih.gov/compound/${cid}` : "";
+    const link = cid ? `https://pubchem.ncbi.nlm.nih.gov/compound/${cid}` : "";
+    const registry = compound?.props?.find(p => p.urn?.label === "Registry Number" && p.urn?.name === "CAS");
 
-    const casProp = data?.PC_Compounds?.[0]?.props?.find(p =>
-      p.urn?.label === "Registry Number" && p.urn?.name === "CAS"
-    );
-    if (casProp?.value?.sval) {
+    if (registry?.value?.sval) {
       results.push({
-        cas: casProp.value.sval,
+        cas: registry.value.sval,
         type: "primary",
-        score: 95,
         source: "PubChem",
-        comment: "Primary CAS number",
-        link: baseLink
+        comment: "Hauptnummer laut PubChem",
+        score: 95,
+        link
       });
     }
 
-    // Related CAS (simuliert, da keine offizielle JSON-API)
-    results.push({
-      cas: "6842-25-7",
-      type: "related",
-      score: 85,
-      source: "PubChem",
-      comment: "Beispiel: Benzene, dimer",
-      link: baseLink + "#section=Related-CAS"
-    });
+    if (cid) {
+      const htmlRes = await fetch(`https://pubchem.ncbi.nlm.nih.gov/compound/${cid}`);
+      const html = await htmlRes.text();
+      const $ = cheerio.load(html);
 
-    // Deprecated CAS
-    results.push({
-      cas: "1053658-43-7",
-      type: "deprecated",
-      score: 30,
-      source: "PubChem",
-      comment: "veraltet",
-      link: baseLink + "#section=Deprecated-CAS"
-    });
+      const parseSection = (sectionTitle, type, baseScore) => {
+        const section = $(`h2:contains("${sectionTitle}")`).first().parent();
+        section.find("a").each((_, el) => {
+          const text = $(el).text().trim();
+          const href = $(el).attr("href");
+          if (/\d{2,7}-\d{2}-\d/.test(text)) {
+            results.push({
+              cas: text,
+              type,
+              score: baseScore,
+              source: "PubChem",
+              comment: type === "related" ? "Verwandte Nummer" : "Veraltet",
+              link: href?.startsWith("http") ? href : `https://pubchem.ncbi.nlm.nih.gov${href}`
+            });
+          }
+        });
+      };
+
+      parseSection("2.3.2 Related CAS", "related", 85);
+      parseSection("2.3.3 Deprecated CAS", "deprecated", 30);
+    }
 
     res.json({ query, results });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: "Fehler beim Abrufen der Daten." });
+    res.status(500).json({ error: "Fehler beim Abrufen oder Parsen der Daten." });
   }
 });
 
