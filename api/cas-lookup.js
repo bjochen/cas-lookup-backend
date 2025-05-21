@@ -9,7 +9,7 @@ router.get("/", async (req, res) => {
 
   const results = [];
   try {
-    // PubChem JSON for primary CAS
+    // PubChem Primary
     const pubchemApi = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(query)}/JSON`;
     const apiResp = await fetch(pubchemApi);
     if (!apiResp.ok) throw new Error(`PubChem API error: ${apiResp.status}`);
@@ -33,17 +33,15 @@ router.get("/", async (req, res) => {
       });
     }
 
-    // Scrape HTML for related & deprecated CAS
+    // Related & Deprecated via HTML
     if (cid) {
-      const htmlResp = await fetch(baseLink);
-      const html = await htmlResp.text();
+      const html = await fetch(baseLink).then(r => r.text());
       const $ = cheerio.load(html);
-
-      function parseSection(titleText, type, score) {
-        $(`h2:contains("${titleText}")`).first().parent().find("a").each((i, el) => {
+      const parseSec = (title, type, score) => {
+        $(`h2:contains("${title}")`).first().parent().find("a").each((i, el) => {
           const txt = $(el).text().trim();
+          const href = $(el).attr("href");
           if (/\d{2,7}-\d{2}-\d/.test(txt)) {
-            const href = $(el).attr("href");
             results.push({
               cas: txt,
               type,
@@ -54,9 +52,41 @@ router.get("/", async (req, res) => {
             });
           }
         });
+      };
+      parseSec("2.3.2 Related CAS", "related", 85);
+      parseSec("2.3.3 Deprecated CAS", "deprecated", 30);
+    }
+
+    // CAS Common Chemistry
+    if (primary) {
+      const ccUrl = `https://commonchemistry.cas.org/detail?cas_rn=${primary}`;
+      const ccResp = await fetch(ccUrl);
+      if (ccResp.ok) {
+        results.push({
+          cas: primary,
+          type: "primary",
+          source: "CAS Common Chemistry",
+          comment: "Verified on CAS Common Chemistry",
+          score: 100,
+          link: ccUrl
+        });
       }
-      parseSection("2.3.2 Related CAS", "related", 85);
-      parseSection("2.3.3 Deprecated CAS", "deprecated", 30);
+    }
+
+    // EPA DSSTox (optional)
+    if (primary && process.env.EPA_API_KEY) {
+      const dsUrl = `https://api.epa.gov/compToxDashboard/data/v1/chemical?casrn=${primary}&api_key=${process.env.EPA_API_KEY}`;
+      const dsResp = await fetch(dsUrl);
+      if (dsResp.ok) {
+        results.push({
+          cas: primary,
+          type: "other",
+          source: "EPA DSSTox",
+          comment: "EPA DSSTox record",
+          score: 85,
+          link: dsUrl
+        });
+      }
     }
 
     res.json({ query, results });
